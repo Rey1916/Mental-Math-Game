@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mental Math Trainer</title>
+  <style>
+    :root{ --bg:#0f172a; --card:#111827; --text:#e5e7eb; --muted:#9ca3af; --accent:#22c55e; --warn:#ef4444; }
+    *{ box-sizing:border-box; }
+    body{ margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:linear-gradient(120deg,#0f172a,#1f2937); color:var(--text); display:flex; min-height:100vh; align-items:center; justify-content:center; padding:20px;}
+    .card{ background:rgba(17,24,39,0.9); backdrop-filter:saturate(120%) blur(6px); border:1px solid #374151; border-radius:24px; padding:24px; width: min(680px, 95vw); box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+    h1{ margin:0 0 8px 0; font-size: clamp(22px, 4vw, 28px); }
+    .row{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    .pill{ padding:8px 12px; border-radius:999px; background:#0b1220; border:1px solid #374151; color:var(--muted); }
+    select, input[type="number"]{ padding:10px 12px; border-radius:12px; border:1px solid #374151; background:#0b1220; color:var(--text); outline:none; }
+    button{ padding:10px 16px; border-radius:12px; border:1px solid #374151; background:#0b1220; color:var(--text); cursor:pointer; transition:transform .05s ease; }
+    button:hover{ transform: translateY(-1px); }
+    .start{ background: #16a34a; border-color:#22c55e; font-weight:700; }
+    .danger{ background:#991b1b; border-color:#b91c1c; }
+    .grid{ display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; gap:10px; margin:18px 0;}
+    .expr{ text-align:right; font-size: clamp(32px, 7vw, 56px); font-weight:800; letter-spacing:1px; }
+    .eq{ font-size: clamp(32px, 7vw, 56px); font-weight:800; opacity:.7; }
+    .answer{ font-size: clamp(28px, 6vw, 48px); font-weight:800; border-bottom:2px dashed #374151; min-width: 120px; padding:6px 8px; }
+    .stats{ display:flex; gap:12px; flex-wrap:wrap; }
+    .stat{ background:#0b1220; border:1px solid #374151; border-radius:14px; padding:10px 12px; min-width:120px; }
+    .big{ font-size:22px; font-weight:800; }
+    .muted{ color: var(--muted); font-size:12px; }
+    .hidden{ display:none; }
+    .center{ text-align:center; }
+    .input-row{ display:flex; gap:10px; justify-content:center; margin-top:10px; }
+    #feedback{ height:22px; text-align:center; }
+    .good{ color: var(--accent); }
+    .bad{ color: var(--warn); }
+    .progress{ height:10px; background:#111827; border:1px solid #374151; border-radius:999px; overflow:hidden; }
+    .bar{ height:100%; width:100%; background: linear-gradient(90deg, #22c55e, #eab308); transition: width .2s linear; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="row" style="justify-content:space-between; align-items:center;">
+      <h1>🧠 Mental Math Trainer</h1>
+      <span class="pill">High Score: <b id="highScore">0</b></span>
+    </div>
+
+    <div class="row">
+      <label>Difficulty
+        <select id="difficulty">
+          <option value="easy">Easy (0–10)</option>
+          <option value="medium">Medium (0–50)</option>
+          <option value="hard">Hard (0–100)</option>
+        </select>
+      </label>
+      <label>Ops
+        <select id="ops" multiple size="4">
+          <option value="+">Addition (+)</option>
+          <option value="-">Subtraction (-)</option>
+          <option value="*">Multiplication (×)</option>
+          <option value="/">Division (÷)</option>
+        </select>
+      </label>
+      <label>Time/Question (sec)
+        <input type="number" id="timePerQ" value="20" min="5" max="120"/>
+      </label>
+      <button class="start" id="startBtn">Start</button>
+      <button class="danger" id="stopBtn">Stop</button>
+    </div>
+
+    <div class="progress"><div class="bar" id="timeBar"></div></div>
+
+    <div id="game" class="hidden">
+      <div class="grid">
+        <div class="expr" id="exprA">12</div>
+        <div class="eq">=</div>
+        <div class="answer"><span id="answerPreview">?</span></div>
+      </div>
+      <div class="input-row">
+        <input type="number" id="answerInput" placeholder="Type answer…" />
+        <button id="submitBtn">Submit</button>
+        <button id="skipBtn">Skip</button>
+      </div>
+      <div id="feedback"></div>
+      <div class="stats">
+        <div class="stat"><div class="muted">Score</div><div class="big" id="score">0</div></div>
+        <div class="stat"><div class="muted">Streak</div><div class="big" id="streak">0</div></div>
+        <div class="stat"><div class="muted">Lives</div><div class="big" id="lives">3</div></div>
+        <div class="stat"><div class="muted">Questions</div><div class="big" id="qCount">0</div></div>
+        <div class="stat"><div class="muted">Accuracy</div><div class="big" id="accuracy">0%</div></div>
+      </div>
+    </div>
+
+    <div id="menu" class="center">
+      <p>Practice mental arithmetic with a timer, streaks, lives, and difficulty. Select the operations you want and hit Start.</p>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const el = id => document.getElementById(id);
+  const difficultyEl = el('difficulty');
+  const opsEl = el('ops');
+  const timePerQEl = el('timePerQ');
+  const startBtn = el('startBtn');
+  const stopBtn = el('stopBtn');
+  const gameEl = el('game');
+  const menuEl = el('menu');
+  const exprA = el('exprA');
+  const answerPreview = el('answerPreview');
+  const answerInput = el('answerInput');
+  const submitBtn = el('submitBtn');
+  const skipBtn = el('skipBtn');
+  const scoreEl = el('score');
+  const streakEl = el('streak');
+  const livesEl = el('lives');
+  const qCountEl = el('qCount');
+  const feedbackEl = el('feedback');
+  const accuracyEl = el('accuracy');
+  const highScoreEl = el('highScore');
+  const timeBar = el('timeBar');
+
+  let score=0, streak=0, lives=3, qCount=0, correct=0;
+  let targetAnswer=0, timer=null, timeLeft=0, timeTotal=20;
+  let running=false;
+
+  const storedHS = +localStorage.getItem('mental_highscore') || 0;
+  highScoreEl.textContent = storedHS;
+
+  function opsSelected(){
+    return Array.from(opsEl.selectedOptions).map(o=>o.value);
+  }
+
+  function rangeByDifficulty(){
+    switch(difficultyEl.value){
+      case 'easy': return [0,10];
+      case 'medium': return [0,50];
+      case 'hard': return [0,100];
+      default: return [0,10];
+    }
+  }
+
+  function randInt(min, max){ return Math.floor(Math.random()*(max-min+1))+min; }
+
+  function newQuestion(){
+    const ops = opsSelected().length ? opsSelected() : ['+','-','*','/'];
+    const op = ops[randInt(0, ops.length-1)];
+    const [lo, hi] = rangeByDifficulty();
+    let a = randInt(lo, hi);
+    let b = randInt(lo, hi);
+
+    // Adjust to keep division nice (integer results) for easy/medium
+    if(op === '/'){
+      if(difficultyEl.value !== 'hard'){
+        b = randInt(1, Math.max(1, hi/2));
+        a = b * randInt(lo, hi/Math.max(1,b));
+      } else {
+        if(b === 0) b = 1;
+      }
+    }
+
+    let exprText = `${a} ${op} ${b}`;
+    targetAnswer = compute(a, b, op);
+    exprA.textContent = exprText;
+    answerInput.value = '';
+    answerPreview.textContent = '?';
+    qCount++;
+    qCountEl.textContent = qCount;
+    startTimer();
+  }
+
+  function compute(a,b,op){
+    switch(op){
+      case '+': return a + b;
+      case '-': return a - b;
+      case '*': return a * b;
+      case '/': return +(a / b).toFixed(2);
+      default: return a + b;
+    }
+  }
+
+  function startTimer(){
+    clearInterval(timer);
+    timeTotal = Math.max(5, Math.min(120, +timePerQEl.value || 20));
+    timeLeft = timeTotal;
+    updateBar();
+    timer = setInterval(()=>{
+      timeLeft -= 0.2;
+      if(timeLeft <= 0){
+        clearInterval(timer);
+        handleWrong('⏰ Time up!');
+      }
+      updateBar();
+    }, 200);
+  }
+
+  function updateBar(){
+    const pct = Math.max(0, Math.min(100, (timeLeft/timeTotal)*100));
+    timeBar.style.width = pct + '%';
+  }
+
+  function handleCorrect(){
+    feedbackEl.textContent = '✅ Correct!';
+    feedbackEl.className = 'good';
+    correct++;
+    const bonus = 10 + Math.floor(streak*1.5) + Math.max(0, Math.floor((timeLeft/timeTotal)*10));
+    score += bonus;
+    streak++;
+    scoreEl.textContent = score;
+    streakEl.textContent = streak;
+    updateAccuracy();
+    maybeSaveHighScore();
+    setTimeout(newQuestion, 500);
+  }
+
+  function handleWrong(msg){
+    feedbackEl.textContent = '❌ ' + (msg || 'Wrong');
+    feedbackEl.className = 'bad';
+    streak = 0;
+    lives--;
+    livesEl.textContent = lives;
+    streakEl.textContent = 0;
+    updateAccuracy();
+    if(lives <= 0){
+      endGame();
+    } else {
+      setTimeout(newQuestion, 700);
+    }
+  }
+
+  function updateAccuracy(){
+    const acc = qCount ? Math.round((correct / qCount) * 100) : 0;
+    accuracyEl.textContent = acc + '%';
+  }
+
+  function maybeSaveHighScore(){
+    const hs = +localStorage.getItem('mental_highscore') || 0;
+    if(score > hs){
+      localStorage.setItem('mental_highscore', String(score));
+      highScoreEl.textContent = score;
+    }
+  }
+
+  function startGame(){
+    if(running) return;
+    running = true;
+    score=0; streak=0; lives=3; qCount=0; correct=0;
+    scoreEl.textContent=0; streakEl.textContent=0; livesEl.textContent=3; qCountEl.textContent=0; accuracyEl.textContent='0%';
+    feedbackEl.textContent='';
+    menuEl.classList.add('hidden');
+    gameEl.classList.remove('hidden');
+    newQuestion();
+    answerInput.focus();
+  }
+
+  function endGame(){
+    running = false;
+    clearInterval(timer);
+    feedbackEl.textContent = `🏁 Game Over — Final Score: ${score}`;
+    menuEl.classList.remove('hidden');
+  }
+
+  // Events
+  startBtn.addEventListener('click', startGame);
+  stopBtn.addEventListener('click', endGame);
+  submitBtn.addEventListener('click', ()=>{
+    const val = answerInput.value.trim();
+    if(val === '') return;
+    const userAns = +val;
+    if (Math.abs(userAns - targetAnswer) < 0.01) handleCorrect();
+    else handleWrong();
+  });
+  skipBtn.addEventListener('click', ()=> handleWrong('Skipped'));
+
+  answerInput.addEventListener('input', ()=>{
+    answerPreview.textContent = answerInput.value || '?';
+  });
+
+  answerInput.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){ submitBtn.click(); }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Spring Boot Calculator</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+        input { padding: 5px; width: 80px; margin: 5px; }
+        button { padding: 10px 20px; margin: 5px; font-size: 16px; cursor: pointer; }
+        #result { margin-top: 20px; font-size: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Calculator</h1>
+    <input type="number" id="a" placeholder="Enter A">
+    <input type="number" id="b" placeholder="Enter B"><br>
+    <button onclick="calculate('add')">+</button>
+    <button onclick="calculate('subtract')">-</button>
+    <button onclick="calculate('multiply')">×</button>
+    <button onclick="calculate('divide')">÷</button>
+    <div id="result"></div>
+
+    <script>
+        async function calculate(operation) {
+            const a = document.getElementById("a").value;
+            const b = document.getElementById("b").value;
+            if (a === "" || b === "") {
+                alert("Please enter both numbers!");
+                return;
+            }
+            try {
+                const response = await fetch(`/api/v1/calc/${operation}?a=${a}&b=${b}`);
+                if (!response.ok) {
+                    throw new Error("Error: " + response.statusText);
+                }
+                const data = await response.json();
+                document.getElementById("result").innerText = "Result: " + data.result;
+            } catch (error) {
+                document.getElementById("result").innerText = error.message;
+            }
+        }
+    </script>
+</body>
+</html>
