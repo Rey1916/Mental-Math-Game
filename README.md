@@ -1,5 +1,7 @@
 # Mental Math Trainer (Spring Boot)
 
+A mental trainer application uses java as main programming language and uses Springboot framework to run.
+
 Run:
 ```
 ./mvnw spring-boot:run
