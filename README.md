@@ -1,4 +1,4 @@
-# Mental Math Trainer (Spring Boot)
+# Smartly (Spring Boot)
 
 A Mental Math trainer application uses JAVA and HTML language and Springboot framework to run.
 
